@@ -3,6 +3,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs/promises');
 const fsBase = require('fs');
+const superagent = require('superagent');
 
 program
     .requiredOption('-h, --host <host>', 'server host')
@@ -36,6 +37,8 @@ async function handleGet(code, res) {
     const filePath = getCacheFilePath(code);
 
     try {
+        await fs.access(filePath);
+        
         const readStream = fsBase.createReadStream(filePath);
 
         res.writeHead(200, { 'Content-Type': 'image/jpeg', 'X-Cache': 'HIT' });
@@ -54,9 +57,22 @@ async function handleGet(code, res) {
 
     } catch (err) {
         if (err.code === 'ENOENT') {
-            res.writeHead(404, { 'Content-Type': 'text/plain' }); 
-            res.end(`Not Found: Image for code ${code} not in cache.`);
-            console.log(`[GET ${code}] Image not found (404 Not Found).`);
+            console.log(`[GET ${code}] Cache MISS. Fetching from http.cat...`);
+            try {
+                const url = `https://http.cat/${code}`;
+                const response = await superagent.get(url).buffer(true).parse(superagent.parse.image);
+
+                await fs.writeFile(filePath, response.body); 
+                console.log(`[GET ${code}] Successfully fetched and cached.`);
+                
+                res.writeHead(200, { 'Content-Type': 'image/jpeg', 'X-Cache': 'MISS' });
+                res.end(response.body);
+
+            } catch (proxyErr) {
+                console.error(`[GET ${code}] Error fetching from http.cat: ${proxyErr.message}`);
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end(`Not Found: Image for code ${code} not in cache and not available on http.cat.`);
+            }
         } else {
             console.error(`[GET ${code}] Error reading from cache: ${err.message}`);
             res.writeHead(500, { 'Content-Type': 'text/plain' });
