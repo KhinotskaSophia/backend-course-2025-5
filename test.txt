@@ -1,0 +1,17 @@
+1. PUT (201 Created)
+curl -X PUT --data-binary @image.jpg http://localhost:3000/201 -v
+
+2. GET існуючого файлу (200 OK)
+curl -X GET http://localhost:3000/201 -o 201.jpeg -v
+
+3. DELETE існуючого файлу (200 OK)
+curl -X DELETE http://localhost:3000/201
+
+4. GET неіснуючого файлу (404 Not Found)
+curl -X GET http://localhost:3000/333
+
+5. DELETE неіснуючого файлу (404 Not Found)
+curl -X DELETE http://localhost:3000/333
+
+6. Method Not Allowed (405)
+curl -X POST http://localhost:3000/201
